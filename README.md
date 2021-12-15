@@ -21,7 +21,7 @@
     
     api_v1/statistics/
     
- Детальный просмотр  
+ Детальный просмотр  и удаление 
      
     api_v1/statistics/<int:pk>
     

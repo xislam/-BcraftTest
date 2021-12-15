@@ -1,6 +1,7 @@
 from datetime import timedelta
 
-from rest_framework import generics
+from django.http import Http404
+from rest_framework import generics, status
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,11 +17,15 @@ class StatisticsView(APIView):
         statistic = Statistics.objects.all()
         serializer = StatisticsSerializer(statistic, many=True)
         for evidences in statistic:
-            cpc = evidences.cost / evidences.clicks
-            cpm = evidences.cost / evidences.views * 1000
-            Statistics.objects.get(
-                cpc=cpc,
-                cpm=cpm,
+            cpcs = evidences.cost / evidences.clicks
+            cpms = evidences.cost / evidences.views * 1000
+            Statistics.objects.update(
+                date=evidences.date,
+                views=evidences.views,
+                clicks=evidences.clicks,
+                cost=evidences.cost,
+                cpc=cpcs,
+                cpm=cpms,
             )
         return Response({"statistic": serializer.data})
 
@@ -54,3 +59,33 @@ class PurchaseList(generics.ListAPIView):
             queryset = queryset.filter(date__range=[start_date, end_date])
 
             return queryset
+
+
+class SnippetDetail(APIView):
+    """
+    Retrieve, update or delete a snippet instance.
+    """
+
+    def get_object(self, pk):
+        try:
+            return Statistics.objects.get(pk=pk)
+        except Statistics.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk, format=None):
+        snippet = self.get_object(pk)
+        serializer = StatisticsSerializer(snippet)
+        return Response(serializer.data)
+
+    def put(self, request, pk, format=None):
+        snippet = self.get_object(pk)
+        serializer = StatisticsSerializer(snippet, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, format=None):
+        snippet = self.get_object(pk)
+        snippet.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
